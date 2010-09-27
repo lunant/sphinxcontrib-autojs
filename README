@@ -1,0 +1,92 @@
+.. -*- restructuredtext -*-
+
+============================
+Auto JavaScript Documentaion
+============================
+
+:author: Lee Heung-sub <sublee@lunant.com>
+
+
+About
+=====
+
+This extension generates a reference documentation from a JavaScript source
+file. A JavaScript source code should follow the style that is suggested by
+`jDoctest`_.
+
+.. _jDoctest: http://jdoctest.lunant.net/
+
+
+Installation
+============
+
+Enter the ``sphinxcontrib-autojs`` directory and run:
+
+.. sourcecode:: console
+
+    $ python setup.py install
+
+
+Usage
+=====
+
+
+Simple Tutorial
+---------------
+
+Here is an example JavaScript source.
+
+.. sourcecode:: js
+
+    var ImageFile = function( url ) {
+        /**class:ImageFile( url )
+
+        A container for an image file.
+
+            >>> var img = new ImageFile( "_static/jdoctest.png" );
+            >>> img.url;
+            '_static/jdoctest.png'
+        */
+        this.url = String( url );
+    };
+    ImageFile.prototype = {
+        fetchData: function() {
+            /**:ImageFile.prototype.fetchData()
+
+            Request to the server to get data of this image file. When the
+            request done we can get ``size`` or ``modified`` attribute.
+
+                >>> img.fetchData();
+                >>> wait(function() { return img.data; });
+                >>> img.size;
+                21618
+                >>> img.modified; //doctest: +SKIP
+                Sat Sep 25 2010 19:57:47 GMT+0900 (KST)
+            */
+            $.get( this.url, function( data ) {
+                this.data = data;
+                this.size = data.length;
+                this.modified = new Date(); // Not Implemented Yet
+            });
+        }
+    };
+
+The file that has this source named ``imagefile.js``. It is in ``_examples``
+directory of the current Sphinx document directory. Then this source:
+
+.. sourcecode:: rst
+
+    .. autojs:: _examples/imagefile.js
+
+is rendered as:
+
+.. autojs:: _examples/imagefile.js
+
+
+Options
+-------
+
+``:members:``:
+    The member list in the source code. Each members are separated by a
+    comma(``,``).
+
