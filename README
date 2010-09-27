@@ -88,5 +88,12 @@ Options
 
 ``:members:``:
     The member list in the source code. Each members are separated by a
-    comma(``,``).
+    comma(``,``). A member is such as ``ImageFile`` or
+    ``ImageFile.prototype.fetchData``. If you want to make a documentation
+    of only ``ImageFile.prototype.fetchData`` then:
+
+    .. sourcecode:: rst
+
+        .. autojs:: _examples/imagefile.js
+           :members: ImageFile.prototype.fetchData
 
