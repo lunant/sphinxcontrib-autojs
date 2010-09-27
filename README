@@ -7,9 +7,6 @@ Auto JavaScript Documentaion
 :author: Lee Heung-sub <sublee@lunant.com>
 
 
-About
-=====
-
 This extension generates a reference documentation from a JavaScript source
 file. A JavaScript source code should follow the style that is suggested by
 `jDoctest`_.
@@ -30,9 +27,6 @@ Enter the ``sphinxcontrib-autojs`` directory and run:
 Usage
 =====
 
-
-Simple Tutorial
----------------
 
 Here is an example JavaScript source.
 
@@ -81,6 +75,58 @@ directory of the current Sphinx document directory. Then this source:
 is rendered as:
 
 .. autojs:: _examples/imagefile.js
+
+
+JavaScript Docstring
+--------------------
+
+Here is the documentation of jDoctest which explains a JavaScript comment block
+for docstring.
+
+    A docstring is a multiline comment but it starts with ``/**``.
+
+But this extension examines only named docstrings. A name of a docstring is
+after ``/**`` and starts with ``:``:
+
+.. sourcecode:: js
+
+    /**:SomeClass.prototype.someMethod( reqArg[, optArg1[, optArg2 ] ] )
+
+    The description for ``someMethod``.
+    */
+
+Then the example docstring's name is
+``SomeClass.prototype.someMethod( reqArg[, optArg1[, optArg2 ] ] )``.
+
+
+JavaScript Doctest
+------------------
+
+You might know `doctest`_ module for Python. This module examines interactive
+Python sessions such as:
+
+.. sourcecode:: pycon
+
+    >>> [factorial(n) for n in range(6)]
+    [1, 1, 2, 6, 24, 120]
+    >>> [factorial(long(n)) for n in range(6)]
+    [1, 1, 2, 6, 24, 120]
+    >>> factorial(30)
+    265252859812191058636308480000000L
+
+The interactive JavaScript sessions are similar to the Python's:
+
+.. sourcecode:: jscon
+
+    >>> var title = $( "h1" );
+    >>> title.click(function() {
+    ...     alert( this.innerText );
+    ... });
+    [object Object]
+    >>> Math.round( 1.11111111 );
+    1
+
+.. _doctest: http://docs.python.org/library/doctest
 
 
 Options

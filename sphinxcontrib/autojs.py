@@ -11,9 +11,6 @@ from sphinx.util.compat import Directive
 from sphinx.util.nodes import nested_parse_with_titles
 
 
-__all__ = ["AutoJavaScript"]
-
-
 START = "/**"
 END = "*/"
 PROMPT = ">>> "
