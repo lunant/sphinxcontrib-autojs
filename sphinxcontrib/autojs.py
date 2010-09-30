@@ -9,12 +9,22 @@ from sphinx import addnodes
 from sphinx.domains.javascript import *
 from sphinx.util.compat import Directive
 from sphinx.util.nodes import nested_parse_with_titles
+from sphinx.ext.autodoc import members_option, bool_option, identity, ALL
 
 
+# for docstrings
 START = "/**"
 END = "*/"
 PROMPT = ">>> "
 CONTINUED = "... "
+
+
+def text_indent(indent, text):
+    return re.compile("^", re.MULTILINE).sub(indent, text)
+
+
+def text_outdent(indent, text):
+    return re.compile("^" + re.escape(indent), re.MULTILINE).sub("", text)
 
 
 class JavascriptConsoleLexer(JavascriptLexer):
@@ -60,11 +70,14 @@ class JavascriptConsoleLexer(JavascriptLexer):
             yield item
 
 
-class JSClassmember(JSCallable):
+class JSClassmember(JSObject):
+
+    @property
+    def has_arguments(self):
+        return self.objtype.endswith("method")
 
     def handle_signature(self, sig, signode):
         if self.objtype in ("staticmethod", "attribute"):
-            self.objtype = "staticmethod"
             sig_prefix = "static "
             signode += addnodes.desc_annotation(sig_prefix, sig_prefix)
         sig = sig.split(".")[-1]
@@ -96,8 +109,107 @@ JavaScriptDomain.directives.update({"member": JSClassmember,
 JavaScriptDomain.roles.update({"meth": JSXRefRole(fix_parens=True)})
 
 
+class JavaScriptDocstring(object):
+
+    def __init__(self, indent, body, name=None, sig=None, directive=None):
+        self.indent = indent
+        self.body = body
+        self.name = name
+        self.sig = sig
+        self.directive = directive
+        self._member_re = re.compile("^" + re.escape(self.name) + \
+                                     "(?:\.prototype)?\.([^.]+)$")
+
+    def guess_objtype(self, in_parent=True):
+        if self.directive:
+            return self.directive
+        static = ".prototype." not in self.sig
+        if "(" in self.sig and self.sig.endswith(")"):
+            if not in_parent:
+                return "function"
+            elif static:
+                return "staticmethod"
+            else:
+                return "method"
+        elif not in_parent:
+            return "data"
+        elif static:
+            return "attribute"
+        else:
+            return "member"
+
+    def to_rst(self, docstrings=[], indent="", parent=None, is_member=None):
+        rst = []
+        in_parent = isinstance(parent, type(self))
+        if self.sig:
+            objtype = self.guess_objtype(in_parent=in_parent)
+            sig = self.sig
+            if in_parent:
+                sig = parent._member_re.sub(r"\1", sig)
+            subject = "\n%s.. js:%s:: %s\n" % (indent, objtype, sig)
+            indent += "   "
+            rst.append(subject)
+        body = text_indent(indent, self.body)
+        rst.append(body)
+        try:
+            if objtype == "class" or not objtype.endswith("method"):
+                included = []
+                members = self.find_members(docstrings, is_member)
+                for i, mem in members:
+                    rst.append(mem.to_rst(docstrings, indent, parent=self))
+                    included.append(i)
+                for i in reversed(included):
+                    del docstrings[i]
+        except NameError:
+            pass
+        return "\n".join(rst)
+
+    def find_members(self, docstrings, is_member=None):
+        _is_member = is_member
+        def is_member(doc):
+            if callable(_is_member) and not _is_member(doc):
+                return False
+            return self._member_re.match(doc.sig)
+        for i, mem in enumerate(docstrings):
+            if mem.directive in (None, "attribute") and is_member(mem):
+                yield i, mem
+
+    @classmethod
+    def from_match(cls, match):
+        interaction_re = re.compile(r"""
+            \n\s*?\n
+            (?P<codeblock> \s*?
+                (?P<prompt> \>\>\>)
+            )
+        """, re.VERBOSE | re.MULTILINE)
+        codeblock_re = re.compile(r"""
+            ::\s*?\n\s*?\n
+        """, re.VERBOSE | re.MULTILINE)
+        try:
+            indent = match.group("indent")
+            name = match.group("name")
+            sig = match.group("signature")
+            directive = match.group("directive")
+        except IndexError:
+            name = sig = directive = None
+            indent = ""
+        body = text_outdent(indent, match.group("body"))
+        body = interaction_re.sub("\n\n.. sourcecode:: jscon" \
+                                  "\n\n\g<codeblock>", body)
+        body = codeblock_re.sub("\n\n.. sourcecode:: js\n\n", body)
+        return cls(indent, body, name, sig, directive)
+
+
 class JavaScriptDocument(object):
 
+    _MODULE_DOCSTRING_RE = re.compile(r"""
+        ^
+        (?P<docprefix> /\*\*)
+        \s*\n+
+        (?P<body> .+?)
+        \s*
+        (?P<docsuffix> \*/)
+    """, re.VERBOSE | re.MULTILINE | re.DOTALL)
     _DOCSTRING_RE = re.compile(r"""
         (?P<indent> [ ]*)
         (?P<docprefix> /\*\*)
@@ -116,97 +228,78 @@ class JavaScriptDocument(object):
         \s*
         (?P<docsuffix> \*/)
     """, re.VERBOSE | re.MULTILINE | re.DOTALL)
-    _INTERACTION_RE = re.compile(r"""
-        \n\s*?\n
-        (?P<codeblock> \s*?
-            (?P<prompt> \>\>\>)
-        )
-    """, re.VERBOSE | re.MULTILINE)
 
     def __init__(self, path):
         with open(path) as f:
             self.source = "".join(f.readlines())
 
-    def _indent(self, indent, text):
-        return re.compile("^", re.MULTILINE).sub(indent, text)
+    def get_description(self):
+        match = self._MODULE_DOCSTRING_RE.match(self.source)
+        if not match:
+            raise ValueError("There is no docstring for the module.")
+        return JavaScriptDocstring.from_match(match)
 
-    def _unindent(self, indent, text):
-        return re.compile("^" + re.escape(indent), re.MULTILINE).sub("", text)
+    def get_docstrings(self):
+        matches = self._DOCSTRING_RE.finditer(self.source)
+        if not matches:
+            raise ValueError("There is no any named docstring.")
+        for match in matches:
+            yield JavaScriptDocstring.from_match(match)
+
+    def auto_include_desc(self, rst, options):
+        if not options.get("exclude-desc"):
+            try:
+                rst.append(self.get_description().to_rst())
+            except ValueError:
+                pass
+
+    def auto_include_members(self, rst, options):
+        members = options.get("members")
+        if members is not None:
+            exclude_members = options.get("exclude-members", [])
+            is_member = self._make_member_checker(members, exclude_members)
+            compare = self._make_comparer(options.get("member-order"))
+            docstrings = list(self.get_docstrings())
+            docstrings.sort(cmp=compare)
+            for doc in docstrings:
+                if is_member(doc):
+                    rst.append(doc.to_rst(docstrings, is_member=is_member))
+
+    def _make_member_checker(self, members, exclude_members):
+        __members__ = members
+        def is_member(doc, members=None):
+            if members is None:
+                members = __members__
+            if members is not exclude_members and \
+               is_member(doc, exclude_members):
+                return False
+            elif members is ALL or doc.name in members:
+                return True
+            for mem in members:
+                if doc.name.startswith(mem):
+                    return True
+            return False
+        return is_member
+
+    def _make_comparer(self, member_order):
+        if not member_order or member_order == "alphabetical":
+            return lambda d1, d2: cmp(d1.name, d2.name)
+        elif member_order == "groupwise":
+            order = ["class", "member", "attribute", "method", "staticmethod",
+                     "data", "function"]
+            def compare(d1, d2):
+                return cmp(order.index(d1.guess_objtype()),
+                           order.index(d2.guess_objtype())) or \
+                       self._make_comparer(None)(d1, d2)
+            return compare
+        elif member_order == "bysource":
+            return lambda d1, d2: 1
 
     def to_rst(self, options={}):
-        docs = []
-        matches = self._DOCSTRING_RE.finditer(self.source)
-        for match in matches:
-            indent = match.group("indent")
-            directive = match.group("directive")
-            sig = match.group("signature")
-            name = match.group("name")
-            body = self._unindent(indent, match.group("body"))
-            body = self._indent("   ", body)
-            body = self._INTERACTION_RE.sub(
-                "\n\n   .. sourcecode:: jscon\n\n\g<codeblock>", body
-            )
-            docs.append((sig, name, directive, body)) 
         rst = []
-        doc_bodies = []
-        members = options.get("members")
-        for doc in docs:
-            sig, name, directive, body = doc
-            if members:
-                if name not in members:
-                    continue
-                elif directive is None:
-                    directive = self.get_objtype(sig, False)
-            if directive is not None:
-                subject = "\n.. js:%s:: %s\n\n" % (directive, sig)
-                doc_bodies.append(subject + body)
-            if directive == "class":
-                for child in self.get_children(doc, docs):
-                    doc_bodies.append(child)
-        for body in doc_bodies:
-            rst.append(body)
-        with open("test.rst", "w") as f:
-            print>>f, "\n".join(rst)
+        self.auto_include_desc(rst, options)
+        self.auto_include_members(rst, options)
         return "\n".join(rst)
-
-    def get_children(self, doc, docs, depth=1):
-        sig, name, directive, body = doc
-        classmember_re = re.compile(r"^" + name + "(\.prototype)?\.[^.]+$")
-        members = (mem for mem in docs if mem[2] is None and \
-                                          classmember_re.match(mem[0]))
-        for mem in members:
-            objtype = self.get_objtype(mem[0])
-            indent = "   " * depth
-            subject = "\n%s.. js:%s:: %s\n\n" % (indent, objtype, mem[0])
-            body = self._indent(indent, mem[3])
-            yield subject + body
-            if not objtype.endswith("method"):
-                for child in self.get_children((None, mem[0], objtype, mem[3]),
-                                               docs, depth + 1):
-                    yield child
-
-    def get_objtype(self, sig, in_parent=True):
-        static = ".prototype." not in sig
-        if "(" in sig and sig.endswith(")"):
-            if not in_parent:
-                return "function"
-            elif static:
-                return "staticmethod"
-            else:
-                return "method"
-        elif not in_parent:
-            return "data"
-        elif static:
-            return "attribute"
-        else:
-            return "member"
-
-
-ALL = dict()
-def members_option(arg):
-    if arg is None:
-        return ALL
-    return [x.strip() for x in arg.split(',')]
 
 
 class AutoJavaScript(Directive):
@@ -225,7 +318,10 @@ class AutoJavaScript(Directive):
     """
 
     required_arguments = 1
-    option_spec = {"members": members_option}
+    option_spec = {"exclude-desc": bool_option,
+                   "members": members_option,
+                   "exclude-members": members_option,
+                   "member-order": identity}
 
     def add_line(self, line):
         self.result.append(line, "<autojs>")
