@@ -4,7 +4,7 @@
 Auto JavaScript Documentaion
 ============================
 
-:author: Lee Heung-sub <sublee@lunant.com>
+:author: Heungsub Lee <h@subl.ee>
 
 
 This extension generates a reference documentation from a JavaScript source
@@ -36,7 +36,6 @@ Here is an example JavaScript source.
         /**class:ImageFile( url )
 
         A container for an image file.
-
             >>> var img = new ImageFile( "_static/jdoctest.png" );
             >>> img.url;
             '_static/jdoctest.png'
@@ -142,4 +141,3 @@ Options
 
         .. autojs:: _examples/imagefile.js
            :members: ImageFile.prototype.fetchData
-

@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'sphinxcontrib-autojs'
-copyright = u'2010, Lee Heung-sub'
+copyright = u'2010–2011, Heungsub Lee'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -180,7 +180,7 @@ htmlhelp_basename = 'sphinxcontrib-autojsdoc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'sphinxcontrib-autojs.tex', u'sphinxcontrib-autojs Documentation',
-   u'Lee Heung-sub', 'manual'),
+   u'Heungsub Lee', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -213,5 +213,5 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'sphinxcontrib-autojs', u'sphinxcontrib-autojs Documentation',
-     [u'Lee Heung-sub'], 1)
+     [u'Heungsub Lee'], 1)
 ]

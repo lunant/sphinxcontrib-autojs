@@ -72,6 +72,8 @@ class JavascriptConsoleLexer(JavascriptLexer):
 
 class JSClassmember(JSObject):
 
+    doc_field_types = JSCallable.doc_field_types
+
     @property
     def has_arguments(self):
         return self.objtype.endswith("method")
@@ -196,7 +198,7 @@ class JavaScriptDocstring(object):
         body = text_outdent(indent, match.group("body"))
         body = interaction_re.sub("\n\n.. sourcecode:: jscon" \
                                   "\n\n\g<codeblock>", body)
-        body = codeblock_re.sub("\n\n.. sourcecode:: js\n\n", body)
+        body = codeblock_re.sub(":\n\n.. sourcecode:: js\n\n", body)
         return cls(indent, body, name, sig, directive)
 
 
@@ -346,4 +348,3 @@ class AutoJavaScript(Directive):
 def setup(app):
     app.add_directive('autojs', AutoJavaScript)
     app.add_lexer("jscon", JavascriptConsoleLexer())
-
