@@ -10,6 +10,10 @@ that was generated from `jdoctest.js source file
 Links
 `````
 
+* `GitHub repository <http://github.com/lunant/sphinxcontrib-autojs>`_
+* `development version
+  <http://github.com/lunant/sphinxcontrib-autojs/zipball/master#egg=sphinxcontrib-autojs-dev>`_
+
 """
 from setuptools import setup, find_packages
 
