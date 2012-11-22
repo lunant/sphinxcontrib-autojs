@@ -257,15 +257,18 @@ class JavaScriptDocument(object):
 
     def auto_include_members(self, rst, options):
         members = options.get("members")
+        compare = self._make_comparer(options.get("member-order"))
+        docstrings = list(self.get_docstrings())
+        docstrings.sort(cmp=compare)
         if members is not None:
             exclude_members = options.get("exclude-members", [])
             is_member = self._make_member_checker(members, exclude_members)
-            compare = self._make_comparer(options.get("member-order"))
-            docstrings = list(self.get_docstrings())
-            docstrings.sort(cmp=compare)
             for doc in docstrings:
                 if is_member(doc):
                     rst.append(doc.to_rst(docstrings, is_member=is_member))
+        else:
+            for doc in docstrings:
+                rst.append(doc.to_rst(docstrings))
 
     def _make_member_checker(self, members, exclude_members):
         __members__ = members
