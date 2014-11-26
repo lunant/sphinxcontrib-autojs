@@ -11,7 +11,7 @@ This extension generates a reference documentation from a JavaScript source
 file. A JavaScript source code should follow the style that is suggested by
 `jDoctest`_.
 
-.. _jDoctest: http://jdoctest.lunant.net/
+.. _jDoctest: https://lunant.github.io/jdoctest/
 
 
 Installation
