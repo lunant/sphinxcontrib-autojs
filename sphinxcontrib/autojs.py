@@ -295,13 +295,14 @@ class JavaScriptDocument(object):
 
     def _make_comparer(self, member_order):
         if not member_order or member_order == "alphabetical":
-            return lambda d1, d2: cmp(d1.name, d2.name)
+            return lambda d1, d2: (d1.name > d2.name) - (d1.name < d2.name)
         elif member_order == "groupwise":
             order = ["class", "member", "attribute", "method", "staticmethod",
                      "data", "function"]
             def compare(d1, d2):
-                return cmp(order.index(d1.guess_objtype()),
-                           order.index(d2.guess_objtype())) or \
+                i1 = order.index(d1.guess_objtype())
+                i2 = order.index(d2.guess_objtype())
+                return (i1 > i2) - (i1 < i2) or \
                        self._make_comparer(None)(d1, d2)
             return compare
         elif member_order == "bysource":
