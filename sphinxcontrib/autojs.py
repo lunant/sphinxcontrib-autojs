@@ -1,3 +1,4 @@
+import functools
 import os
 import os.path
 import re
@@ -259,7 +260,13 @@ class JavaScriptDocument(object):
         members = options.get("members")
         compare = self._make_comparer(options.get("member-order"))
         docstrings = list(self.get_docstrings())
-        docstrings.sort(cmp=compare)
+
+        cmp_to_key = getattr(functools, 'cmp_to_key', None)
+        if cmp_to_key:
+            docstrings.sort(key=functools.cmp_to_key(compare))
+        else:
+            docstrings.sort(cmp=compare)
+
         if members is not None:
             exclude_members = options.get("exclude-members", [])
             is_member = self._make_member_checker(members, exclude_members)
