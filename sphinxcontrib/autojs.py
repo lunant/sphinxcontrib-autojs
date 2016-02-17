@@ -332,7 +332,14 @@ class AutoJavaScript(Directive):
         self.result.append(line, "<autojs>")
 
     def add_lines(self, lines):
-        if isinstance(lines, basestring):
+        try:
+            # Python2
+            is_string = isinstance(lines, basestring)
+        except NameError:
+            # Python3
+            is_string = isinstance(lines, str)
+
+        if is_string:
             lines = lines.split("\n")
         for line in lines:
             self.add_line(line)
