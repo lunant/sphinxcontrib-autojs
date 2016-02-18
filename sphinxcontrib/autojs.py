@@ -1,3 +1,4 @@
+import functools
 import os
 import os.path
 import re
@@ -259,7 +260,13 @@ class JavaScriptDocument(object):
         members = options.get("members")
         compare = self._make_comparer(options.get("member-order"))
         docstrings = list(self.get_docstrings())
-        docstrings.sort(cmp=compare)
+
+        cmp_to_key = getattr(functools, 'cmp_to_key', None)
+        if cmp_to_key:
+            docstrings.sort(key=functools.cmp_to_key(compare))
+        else:
+            docstrings.sort(cmp=compare)
+
         if members is not None:
             exclude_members = options.get("exclude-members", [])
             is_member = self._make_member_checker(members, exclude_members)
@@ -288,13 +295,14 @@ class JavaScriptDocument(object):
 
     def _make_comparer(self, member_order):
         if not member_order or member_order == "alphabetical":
-            return lambda d1, d2: cmp(d1.name, d2.name)
+            return lambda d1, d2: (d1.name > d2.name) - (d1.name < d2.name)
         elif member_order == "groupwise":
             order = ["class", "member", "attribute", "method", "staticmethod",
                      "data", "function"]
             def compare(d1, d2):
-                return cmp(order.index(d1.guess_objtype()),
-                           order.index(d2.guess_objtype())) or \
+                i1 = order.index(d1.guess_objtype())
+                i2 = order.index(d2.guess_objtype())
+                return (i1 > i2) - (i1 < i2) or \
                        self._make_comparer(None)(d1, d2)
             return compare
         elif member_order == "bysource":
@@ -332,7 +340,14 @@ class AutoJavaScript(Directive):
         self.result.append(line, "<autojs>")
 
     def add_lines(self, lines):
-        if isinstance(lines, basestring):
+        try:
+            # Python2
+            is_string = isinstance(lines, basestring)
+        except NameError:
+            # Python3
+            is_string = isinstance(lines, str)
+
+        if is_string:
             lines = lines.split("\n")
         for line in lines:
             self.add_line(line)
